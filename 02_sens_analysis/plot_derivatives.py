@@ -4,6 +4,8 @@
 Created on Tue Sep 29 17:02:05 2020
 
 @author: nscho
+
+Jemima Pilgrim-Morris
 """
 
 
@@ -97,7 +99,7 @@ if __name__ == "__main__":
                 finite_data.append(np.imag(cfl.readcfl(sysargs[i+1]).squeeze()))
 
         # Define data characteristics! Hard coded!
-        para = ['$\partial M/\partial R_1\cdot R_1$', '$\partial M/\partial R_2\cdot R_2$', '$\partial M/\partial B_1\cdot B_1$']
+        para = ['$\partial M/\partial R_1$', '$\partial M/\partial R_2$', '$\partial M/\partial B_1$']
 
         inset_loc = [(.4, .1), (.4, .5), (.4, .1)]
 
@@ -117,10 +119,12 @@ if __name__ == "__main__":
 
         nom_fac = [1/T1, 1/T2, B1]       # R1, R2, B1
 
-        for i in range(0, len(nom_fac)):
-                sa_data[i]      = sa_data[i]     * nom_fac[i]
-                finite_data[i]  = finite_data[i] * nom_fac[i]
-                deriv[i]        = deriv[i]       * nom_fac[i]
+        # JPM: to replicate ISMRM abstract, do not perform normalisation
+
+        #for i in range(0, len(nom_fac)):
+        #        sa_data[i]      = sa_data[i]     * nom_fac[i]
+        #        finite_data[i]  = finite_data[i] * nom_fac[i]
+        #        deriv[i]        = deriv[i]       * nom_fac[i]
 
 
         """
@@ -147,6 +151,9 @@ if __name__ == "__main__":
         axes = fig.subplots(nrows=3, ncols=2)
         
         # Main Slice-Profile Visualization
+
+        # JPM: factors for scaling errors
+        norm = (128, 1358, 43)
 
         for f in range(0,len(finite_data)):
 
@@ -208,15 +215,25 @@ if __name__ == "__main__":
                 # Scaling to convert to ppm
                 to_ppm = 1000
 
+                # JPM: to replicate ISMRM abstract, scale by maximum error
+
+                # find maximum difference
+                abs_diff = []
+                for h in range(0, number_h_values):
+                        abs_diff.append(np.max(np.abs(deriv[f]-finite_data[f][:,h])))
+                
+                abs_diff.append(np.max(np.abs(sa_data[f]-deriv[f])))
+                
+                print(np.max(abs_diff))
 
                 # Plot num. diff. scaled to maximum value
                 c=0
                 for h in range(0, number_h_values):
-                        ax2.plot(np.abs(deriv[f]-finite_data[f][:,h])*to_ppm, '-', color=COLOR[c], alpha=1, linewidth=LW)
+                        ax2.plot(np.abs(deriv[f]-finite_data[f][:,h])/np.max(abs_diff), '-', color=COLOR[c], alpha=1, linewidth=LW)
                         c+=1
                 
                 # Plot SA error scaled to maximum value
-                ax2.plot(np.abs(sa_data[f]-deriv[f])*to_ppm, '-', color='r', alpha=1, linewidth=LW)
+                ax2.plot(np.abs(sa_data[f]-deriv[f])/np.max(abs_diff), '-', color='r', alpha=1, linewidth=LW)
 
                 # Axis layout
                 ax2.locator_params(axis='y', nbins=5)
@@ -232,15 +249,18 @@ if __name__ == "__main__":
                 axin2 = ax2.inset_axes((.4, .4,.4,.4))
 
                 # Plot num. diff. scaled to maximum value
+                # JPM: to replicate ISRMR abstract, scale up errors by norm by visualisation
                 c=0
+                
                 for h in range(0, number_h_values):
-                        axin2.plot(np.abs(deriv[f]-finite_data[f][:,h])*to_ppm, '-', color=COLOR[c], alpha=1, linewidth=LW)
+                        axin2.plot(norm[f]*np.abs(deriv[f]-finite_data[f][:,h]), '-', color=COLOR[c], alpha=1, linewidth=LW)
                         c+=1
                 
                 # Plot SA error scaled to maximum value
-                axin2.plot(np.abs(sa_data[f]-deriv[f])*to_ppm, '-', color='r', alpha=1, linewidth=LW)
+                axin2.plot(norm[f]*np.abs(sa_data[f]-deriv[f]), '-', color='r', alpha=1, linewidth=LW)
                 
-                x1, x2, y1, y2 = 810, 1010, -0.0001*to_ppm, 0.0005*to_ppm # specify the limits
+                #x1, x2, y1, y2 = 810, 1010, -0.0001/np.max(abs_diff), 0.0006/np.max(abs_diff) # specify the limits
+                x1, x2, y1, y2 = 810, 1010, -0.01, 0.1
 
                 axin2.set_xlim(x1, x2) # apply the x-limits
                 axin2.set_ylim(y1, y2) # apply the y-limits
@@ -252,14 +272,14 @@ if __name__ == "__main__":
 
                 if(0 == f):
                         ax1.set_title("$\\bf{Partial}$ $\\bf{Derivative}$\n", fontsize=FS+5)
-                        ax2.set_title("$\\bf{|Error|}$ / ppm\n", fontsize=FS+5)
+                        ax2.set_title("$\\bf{|Error|}$\n", fontsize=FS+5)
 
         # Add legend
         axLine, axLabel = ax1.get_legend_handles_labels()
 
-        fig.legend(axLine, axLabel, loc = 'lower center', bbox_to_anchor=(0.5, -0.05), fontsize=FS-5, fancybox=True, shadow=True, ncol=4)
+        fig.legend(axLine, axLabel, loc = 'lower center', bbox_to_anchor=(0.5, 0), fontsize=FS-6, fancybox=True, shadow=True, ncol=4)
 
-        plt.tight_layout(pad=5)
+        # plt.tight_layout(pad=5)
         # plt.show(block = False)
 
         fig.savefig(filename+".png", bbox_inches='tight', transparent=False)
